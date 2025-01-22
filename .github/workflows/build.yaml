@@ -2,12 +2,11 @@ name: Build and publish xk6-kafka
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - main
     tags:
-      - "v*"
+      - v*
   pull_request:
-    branches: [ master ]
-  workflow_dispatch:
 
 jobs:
   build:
