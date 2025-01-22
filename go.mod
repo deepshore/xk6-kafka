@@ -4,10 +4,6 @@ go 1.23
 
 toolchain go1.23.1
 
-replace github.com/segmentio/kafka-go v0.4.34 => /Users/selamanse/Documents/GITHUB/kafka-go
-
-replace github.com/deepshore/kafka-go/sasl/azure_entra v0.1.7 => /Users/selamanse/Documents/GITHUB/kafka-go/sasl/azure_entra
-
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.7.0
 	github.com/aws/aws-sdk-go-v2/config v1.28.6
@@ -72,9 +68,8 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e // indirect
 	github.com/spf13/afero v1.11.0 // indirect
-	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
-	github.com/xdg-go/scram v1.1.2 // indirect
-	github.com/xdg-go/stringprep v1.0.4 // indirect
+	github.com/xdg/scram v1.0.5 // indirect
+	github.com/xdg/stringprep v1.0.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel v1.33.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.33.0 // indirect
