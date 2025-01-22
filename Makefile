@@ -7,6 +7,13 @@ build:
 	--with github.com/deepshore/kafka-go@v0.4.34=/Users/selamanse/Documents/GITHUB/kafka-go \
 	--with github.com/deepshore/kafka-go/sasl/azure_entra@v0.1.7=/Users/selamanse/Documents/GITHUB/kafka-go/sasl/azure_entra
 
+build-linux:
+	GOOS=linux GOARCH=amd64 xk6 build \
+	--output dist/xk6-kafka_deepshoretesting_linux_amd64 \
+	--with github.com/deepshore/xk6-kafka@add-tls-only=. \
+	--with github.com/deepshore/kafka-go@v0.4.34=/Users/selamanse/Documents/GITHUB/kafka-go \
+	--with github.com/deepshore/kafka-go/sasl/azure_entra@v0.1.7=/Users/selamanse/Documents/GITHUB/kafka-go/sasl/azure_entra
+
 test: build
 	dist/xk6-kafka_latest_darwin_arm64 run scripts/test_tls_only.js
 
