@@ -5,24 +5,21 @@ go 1.23
 toolchain go1.23.1
 
 require (
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.14.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.7.0
 	github.com/aws/aws-sdk-go-v2/config v1.28.6
+	github.com/deepshore/kafka-go/sasl/azure_entra v0.1.7
 	github.com/grafana/sobek v0.0.0-20241024150027-d91f02b05e9b
 	github.com/linkedin/goavro/v2 v2.13.0
 	github.com/pavlo-v-chernykh/keystore-go/v4 v4.5.0
 	github.com/riferrei/srclient v0.7.1
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
+	github.com/segmentio/kafka-go v0.4.47
+	github.com/segmentio/kafka-go/sasl/aws_msk_iam_v2 v0.1.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
 	go.k6.io/k6 v0.55.0
 	gopkg.in/guregu/null.v3 v3.5.0
-)
-
-require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.14.0
-	github.com/deepshore/kafka-go/sasl/azure_entra v0.1.7
-	github.com/segmentio/kafka-go v0.4.34
-	github.com/segmentio/kafka-go/sasl/aws_msk_iam_v2 v0.1.0
 )
 
 require (
@@ -68,8 +65,9 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e // indirect
 	github.com/spf13/afero v1.11.0 // indirect
-	github.com/xdg/scram v1.0.5 // indirect
-	github.com/xdg/stringprep v1.0.3 // indirect
+	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
+	github.com/xdg-go/scram v1.1.2 // indirect
+	github.com/xdg-go/stringprep v1.0.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel v1.33.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.33.0 // indirect
