@@ -14,9 +14,9 @@ import {
   Connection,
   SchemaRegistry,
   SCHEMA_TYPE_BYTES,
-  LoadJKS, TLS_1_2
+  LoadJKS,
+  TLS_1_2,
 } from "k6/x/kafka"; // import kafka extension
-
 
 const tlsConfig = {
   enableTls: true,
@@ -34,7 +34,7 @@ const tlsConfig = {
   // clientKeyPem: jks["clientKeyPem"],
   //clientCertsPem: jks["clientCertsPem"],
   //serverCaPem: jksTrust["kafka.pem"],
-  
+
   serverCaPem: "fixtures/kafka.pem",
 };
 
@@ -47,16 +47,16 @@ const writer = new Writer({
   brokers: brokers,
   topic: topic,
   autoCreateTopic: true,
-  tls: tlsConfig
+  tls: tlsConfig,
 });
 const reader = new Reader({
   brokers: brokers,
   topic: topic,
-  tls: tlsConfig
+  tls: tlsConfig,
 });
 const connection = new Connection({
   address: brokers[0],
-  tls: tlsConfig
+  tls: tlsConfig,
 });
 const schemaRegistry = new SchemaRegistry();
 

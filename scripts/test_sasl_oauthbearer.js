@@ -15,7 +15,7 @@ import {
   SchemaRegistry,
   SCHEMA_TYPE_BYTES,
   TLS_1_2,
-  SASL_SSL_OAUTHBEARER
+  SASL_SSL_OAUTHBEARER,
 } from "k6/x/kafka"; // import kafka extension
 
 // SASL config is optional
@@ -26,7 +26,6 @@ const saslConfig = {
   scope: __ENV.AZURE_SCOPE,
   algorithm: SASL_SSL_OAUTHBEARER,
 };
-
 
 const tlsConfig = {
   enableTls: true,
@@ -44,7 +43,7 @@ const tlsConfig = {
   // clientKeyPem: jks["clientKeyPem"],
   //clientCertsPem: jks["clientCertsPem"],
   //serverCaPem: jksTrust["kafka.pem"],
-  
+
   serverCaPem: "fixtures/kafka.pem",
 };
 
@@ -58,18 +57,18 @@ const writer = new Writer({
   topic: topic,
   autoCreateTopic: true,
   tls: tlsConfig,
-  sasl: saslConfig
+  sasl: saslConfig,
 });
 const reader = new Reader({
   brokers: brokers,
   topic: topic,
   tls: tlsConfig,
-  sasl: saslConfig
+  sasl: saslConfig,
 });
 const connection = new Connection({
   address: brokers[0],
   tls: tlsConfig,
-  sasl: saslConfig
+  sasl: saslConfig,
 });
 const schemaRegistry = new SchemaRegistry();
 
