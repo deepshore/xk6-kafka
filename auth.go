@@ -8,8 +8,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/deepshore/kafka-go/sasl/azure_entra"
 	kafkago "github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
 	"github.com/segmentio/kafka-go/sasl/aws_msk_iam_v2"
@@ -21,12 +24,13 @@ import (
 var TLSVersions map[string]uint16
 
 const (
-	none            = "none"
-	saslPlain       = "sasl_plain"
-	saslScramSha256 = "sasl_scram_sha256"
-	saslScramSha512 = "sasl_scram_sha512"
-	saslSsl         = "sasl_ssl"
-	saslAwsIam      = "sasl_aws_iam"
+	none               = "none"
+	saslPlain          = "sasl_plain"
+	saslScramSha256    = "sasl_scram_sha256"
+	saslScramSha512    = "sasl_scram_sha512"
+	saslSsl            = "sasl_ssl"
+	saslAwsIam         = "sasl_aws_iam"
+	saslSslOauthbearer = "sasl_ssl_oauthbearer"
 
 	Timeout = time.Second * 10
 )
@@ -36,6 +40,8 @@ type SASLConfig struct {
 	Password   string `json:"password"`
 	Algorithm  string `json:"algorithm"`
 	AWSProfile string `json:"awsProfile"`
+	Scope      string `json:"scope"`
+	Tenant     string `json:"tenant"`
 }
 
 type TLSConfig struct {
@@ -61,6 +67,7 @@ func GetDialer(saslConfig SASLConfig, tlsConfig TLSConfig) (*kafkago.Dialer, *Xk
 		return nil, err
 	}
 	if saslMechanism != nil {
+		logger.Debug("sasl active")
 		dialer.DualStack = true
 		dialer.SASLMechanism = saslMechanism
 	}
@@ -68,6 +75,7 @@ func GetDialer(saslConfig SASLConfig, tlsConfig TLSConfig) (*kafkago.Dialer, *Xk
 	// Create a TLS dialer, either with or without SASL authentication
 	tlsObject, err := GetTLSConfig(tlsConfig)
 	if err != nil {
+		logger.WithField("error", err).Warn("Not using TLS...")
 		// Ignore the error if we're not using TLS
 		if err.Code != noTLSConfig {
 			logger.WithField("error", err).Error("Cannot process TLS config")
@@ -131,6 +139,26 @@ func GetSASLMechanism(saslConfig SASLConfig) (sasl.Mechanism, *Xk6KafkaError) {
 				failedCreateDialerWithAwsIam, "Unable to load AWS IAM config for AWS MSK", err)
 		}
 		return aws_msk_iam_v2.NewMechanism(cfg), nil
+	case saslSslOauthbearer:
+		logger.Debug("using sasl_ssl_oauthbearer")
+		// Create Azure Entra Default Credentials
+		//cred, err := azidentity.NewDefaultAzureCredential(nil)
+		cred, err := azidentity.NewClientSecretCredential(saslConfig.Tenant, saslConfig.Username, saslConfig.Password, &azidentity.ClientSecretCredentialOptions{})
+
+		reqOptions := &policy.TokenRequestOptions{
+			Scopes:    []string{saslConfig.Scope},
+			EnableCAE: false,
+		}
+
+		if err != nil {
+			return nil, NewXk6KafkaError(
+				failedCreateDialerWithScram, "Unable to create SASL SSL with OAUTHBEARER mechanism", err)
+		}
+
+		// Create Azure Entra SASL Mechanism
+		mechanism := azure_entra.NewMechanism(cred, reqOptions)
+
+		return mechanism, nil
 	default:
 		// Should we fail silently?
 		return nil, nil
@@ -154,6 +182,7 @@ func GetTLSConfig(tlsConfig TLSConfig) (*tls.Config, *Xk6KafkaError) {
 
 	if tlsConfig.ClientCertPem != "" && tlsConfig.ClientKeyPem != "" {
 		// Try to load the certificates from string
+		logger.Debug("Trying to load the client certificates")
 		cert, err := tls.X509KeyPair([]byte(tlsConfig.ClientCertPem), []byte(tlsConfig.ClientKeyPem))
 		if err != nil && err.Error() == "tls: failed to find any PEM data in certificate input" {
 			// Fall back to loading the client certificate and key from the file
