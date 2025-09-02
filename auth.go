@@ -10,6 +10,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/deepshore/kafka-go/sasl/azure_entra"
 	kafkago "github.com/segmentio/kafka-go"
@@ -35,11 +36,12 @@ const (
 )
 
 type SASLConfig struct {
-	Username  string `json:"username"`
-	Password  string `json:"password"`
-	Algorithm string `json:"algorithm"`
-	Scope     string `json:"scope"`
-	Tenant    string `json:"tenant"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	Algorithm  string `json:"algorithm"`
+	AWSProfile string `json:"awsProfile"`
+	Scope      string `json:"scope"`
+	Tenant     string `json:"tenant"`
 }
 
 type TLSConfig struct {
@@ -120,7 +122,18 @@ func GetSASLMechanism(saslConfig SASLConfig) (sasl.Mechanism, *Xk6KafkaError) {
 		}
 		return mechanism, nil
 	case saslAwsIam:
-		cfg, err := config.LoadDefaultConfig(context.TODO())
+		var (
+			cfg aws.Config
+			err error
+		)
+		if saslConfig.AWSProfile != "" {
+			cfg, err = config.LoadDefaultConfig(
+				context.TODO(),
+				config.WithSharedConfigProfile(saslConfig.AWSProfile),
+			)
+		} else {
+			cfg, err = config.LoadDefaultConfig(context.TODO())
+		}
 		if err != nil {
 			return nil, NewXk6KafkaError(
 				failedCreateDialerWithAwsIam, "Unable to load AWS IAM config for AWS MSK", err)
