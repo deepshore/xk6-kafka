@@ -5,8 +5,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"os"
-
-	"github.com/evanw/esbuild/internal/logger"
 )
 
 // TLSVersions is a map of TLS versions to their numeric values.
