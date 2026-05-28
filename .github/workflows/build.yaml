@@ -134,6 +134,9 @@ jobs:
           go-version: "1.26.1"
           cache: false
 
+      - name: Compute filesystem-safe ref name 🏷️
+        run: echo "REF_SAFE=${GITHUB_REF_NAME//\//-}" >>"$GITHUB_ENV"
+
       - name: Download all build artifacts ⬇️
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -151,7 +154,7 @@ jobs:
       - name: Generate CycloneDX SBOM artifacts 📃
         run: |
           go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest
-          cyclonedx-gomod mod -json -licenses -output "code-cyclonedx-xk6-kafka-${GITHUB_REF_NAME}.json"
+          cyclonedx-gomod mod -json -licenses -output "code-cyclonedx-xk6-kafka-${REF_SAFE}.json"
 
       - name: Docker meta 📝
         id: meta
@@ -182,14 +185,14 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
-          build-args: VERSION_TAG=${{ github.ref_name }}
+          build-args: VERSION_TAG=${{ env.REF_SAFE }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Scan Docker image with Syft and generate SBOM 🦉
         uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0.20.10
         with:
-          artifact-name: docker-image-cyclonedx-xk6-kafka-${{ github.ref_name }}.json
+          artifact-name: docker-image-cyclonedx-xk6-kafka-${{ env.REF_SAFE }}.json
           format: cyclonedx-json
           dependency-snapshot: true
 
@@ -200,8 +203,8 @@ jobs:
         run: |
           files=(
             dist/*.tar.gz
-            "code-cyclonedx-xk6-kafka-${GITHUB_REF_NAME}.json"
-            "docker-image-cyclonedx-xk6-kafka-${GITHUB_REF_NAME}.json"
+            "code-cyclonedx-xk6-kafka-${REF_SAFE}.json"
+            "docker-image-cyclonedx-xk6-kafka-${REF_SAFE}.json"
           )
 
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
