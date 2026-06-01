@@ -194,6 +194,7 @@ jobs:
         uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0.20.10
         with:
           artifact-name: docker-image-cyclonedx-xk6-kafka-${{ env.REF_SAFE }}.json
+          output-file: docker-image-cyclonedx-xk6-kafka-${{ env.REF_SAFE }}.json
           format: cyclonedx-json
           dependency-snapshot: true
 
