@@ -25,6 +25,12 @@ type SASLConfig struct {
 	Password   string `json:"password"`
 	Algorithm  string `json:"algorithm"`
 	AWSProfile string `json:"awsProfile"`
+	// Scope overrides the auto-derived OAuth scope for sasl_azure_entra.
+	// Required when the broker hostname is not a valid Entra resource
+	// (e.g. self-hosted Kafka with Entra ID via app registration). When
+	// empty, scope defaults to "https://<broker-host>/.default" — the
+	// Event Hubs convention.
+	Scope string `json:"scope"`
 }
 
 type SASLContext struct {
@@ -40,7 +46,11 @@ func NewSaslContext(saslConfig SASLConfig, brokers []string, opts SASLContextOpt
 
 	switch saslConfig.Algorithm {
 	case saslAzureEntra:
-		oauthProvider, err := NewOAuthProvider(saslConfig.Algorithm, brokers, opts.OAuthProviderOpts)
+		providerOpts := opts.OAuthProviderOpts
+		if providerOpts.scope == "" {
+			providerOpts.scope = saslConfig.Scope
+		}
+		oauthProvider, err := NewOAuthProvider(saslConfig.Algorithm, brokers, providerOpts)
 		if err != nil {
 			return SASLContext{}, err
 		}
