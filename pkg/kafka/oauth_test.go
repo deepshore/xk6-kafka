@@ -18,14 +18,19 @@ var (
 )
 
 type testTokenCredential struct {
-	Subject string
-	Error   error
+	Subject       string
+	Error         error
+	LastScopes    []string
+	LastEnableCAE bool
 }
 
 func (t *testTokenCredential) GetToken(
 	ctx context.Context,
 	opts policy.TokenRequestOptions,
 ) (azcore.AccessToken, error) {
+	t.LastScopes = opts.Scopes
+	t.LastEnableCAE = opts.EnableCAE
+
 	if t.Error != nil {
 		return azcore.AccessToken{}, t.Error
 	}
@@ -113,4 +118,49 @@ func TestGetOAuthTokenFailure(t *testing.T) {
 func TestUnsupportedOAuthProvider(t *testing.T) {
 	_, err := NewOAuthProvider(saslPlain, []string{"broker1"}, OAuthProviderOpts{})
 	require.ErrorContains(t, err, "sasl_plain is not a supported OAuth Provider.")
+}
+
+// TestAzureEntraScopeOverride verifies that the SASLConfig.Scope field
+// overrides the auto-derived "https://<broker-host>/.default" scope.
+// Self-hosted Kafka brokers using Entra ID via an app registration need
+// the override; Event Hubs deployments still rely on auto-derivation.
+func TestAzureEntraScopeOverride(t *testing.T) {
+	const overrideScope = "api://00000000-0000-0000-0000-000000000000/.default"
+
+	testCases := map[string]struct {
+		saslConfig     SASLConfig
+		brokers        []string
+		expectedScopes []string
+	}{
+		"explicit scope overrides auto-derivation": {
+			saslConfig: SASLConfig{
+				Algorithm: saslAzureEntra,
+				Scope:     overrideScope,
+			},
+			brokers:        []string{"broker.example.invalid:9093"},
+			expectedScopes: []string{overrideScope},
+		},
+		"empty scope falls back to host-derived default": {
+			saslConfig: SASLConfig{
+				Algorithm: saslAzureEntra,
+			},
+			brokers:        []string{"ns.servicebus.windows.net:9093"},
+			expectedScopes: []string{"https://ns.servicebus.windows.net/.default"},
+		},
+	}
+
+	for name, test := range testCases {
+		t.Run(name, func(t *testing.T) {
+			cred := &testTokenCredential{Subject: "test-sub"}
+			ctx, err := NewSaslContext(test.saslConfig, test.brokers, SASLContextOpts{
+				OAuthProviderOpts: OAuthProviderOpts{azureTokenCredential: cred},
+			})
+			require.NoError(t, err)
+			require.NotNil(t, ctx.OAuthProvider, "OAuthProvider should be set for sasl_azure_entra")
+
+			_, err = (*ctx.OAuthProvider).GetToken(t.Context())
+			require.NoError(t, err)
+			require.Equal(t, test.expectedScopes, cred.LastScopes)
+		})
+	}
 }
