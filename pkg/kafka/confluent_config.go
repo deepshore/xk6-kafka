@@ -2,13 +2,105 @@ package kafka
 
 import (
 	"context"
+	"fmt"
 	"maps"
+	"math"
 	"strconv"
 	"strings"
 	"time"
 
 	ckafka "github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
+
+// reservedSecurityConfigPrefixes lists connection- and security-critical
+// librdkafka properties that the typed configuration owns exclusively. Raw
+// passthrough config must never set or override these — even when the typed
+// config leaves them unset — so a stray override cannot weaken TLS/SASL,
+// re-enable an insecure transport, or redirect the broker list.
+var reservedSecurityConfigPrefixes = []string{
+	"bootstrap.servers",
+	"security.protocol",
+	"ssl.",
+	"sasl.",
+	"enable.ssl.certificate.verification",
+}
+
+func isReservedSecurityConfigKey(key string) bool {
+	for _, prefix := range reservedSecurityConfigPrefixes {
+		if key == prefix || strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// normalizeConfluentConfigValue coerces a value coming from JS/JSON into a type
+// that confluent-kafka-go's value2string understands (bool, int, string). JSON
+// decoding yields float64 for every number and sobek may yield int64, neither
+// of which librdkafka accepts directly.
+func normalizeConfluentConfigValue(value any) (any, error) {
+	switch v := value.(type) {
+	case bool, string, int:
+		return v, nil
+	case int64:
+		return int(v), nil
+	case int32:
+		return int(v), nil
+	case float64:
+		if v == math.Trunc(v) {
+			return int(v), nil
+		}
+		return nil, fmt.Errorf("%w: got non-integer number %v", errInvalidRawConfigValue, v)
+	case float32:
+		f := float64(v)
+		if f == math.Trunc(f) {
+			return int(f), nil
+		}
+		return nil, fmt.Errorf("%w: got non-integer number %v", errInvalidRawConfigValue, v)
+	default:
+		return nil, fmt.Errorf("%w: got %T", errInvalidRawConfigValue, value)
+	}
+}
+
+// applyRawConfigOverrides merges user-supplied librdkafka properties into config.
+// It is deliberately conservative:
+//   - security/connection keys (reservedSecurityConfigPrefixes) are rejected, so
+//     TLS, SASL, and the broker list cannot be tampered with.
+//   - keys already set by the typed configuration are preserved, so existing
+//     ("legacy") settings are never clobbered.
+//
+// Both categories are skipped with a warning rather than failing the run; only a
+// malformed value (e.g. a non-integer number) aborts, since that signals a real
+// mistake in the supplied config.
+func applyRawConfigOverrides(config ckafka.ConfigMap, raw map[string]any) error {
+	for key, rawValue := range raw {
+		if isReservedSecurityConfigKey(key) {
+			logger.Warnf(
+				"Ignoring raw config key %q: security and connection settings cannot be overridden.",
+				key,
+			)
+			continue
+		}
+		if _, exists := config[key]; exists {
+			logger.Warnf(
+				"Ignoring raw config key %q: it is already managed by xk6-kafka and will not be overwritten.",
+				key,
+			)
+			continue
+		}
+
+		value, err := normalizeConfluentConfigValue(rawValue)
+		if err != nil {
+			return newInvalidConfigError(fmt.Sprintf("raw config key %q", key), err)
+		}
+
+		if err := setConfluentConfigValue(config, key, value); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 const defaultConfluentTimeout = 5 * time.Second
 
@@ -233,6 +325,10 @@ func writerConfigToConfluentConfigMap(writerConfig *WriterConfig) (ckafka.Config
 		return nil, err
 	}
 
+	if err := applyRawConfigOverrides(config, writerConfig.ProducerConfig); err != nil {
+		return nil, err
+	}
+
 	return config, nil
 }
 
@@ -322,6 +418,10 @@ func readerConfigToConfluentConfigMap(readerConfig *ReaderConfig) (ckafka.Config
 		}
 	}
 
+	if err := applyRawConfigOverrides(config, readerConfig.ConsumerConfig); err != nil {
+		return nil, err
+	}
+
 	return config, nil
 }
 
@@ -346,6 +446,10 @@ func connectionConfigToConfluentConfigMap(connectionConfig *ConnectionConfig) (c
 	}
 
 	if err := applyConfluentSecurityConfig(config, connectionConfig.SASL, connectionConfig.TLS); err != nil {
+		return nil, err
+	}
+
+	if err := applyRawConfigOverrides(config, connectionConfig.ClientConfig); err != nil {
 		return nil, err
 	}
 

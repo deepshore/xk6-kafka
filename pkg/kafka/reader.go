@@ -67,6 +67,14 @@ type ReaderConfig struct {
 	OffsetOutOfRangeError  bool          `json:"offsetOutOfRangeError"` // deprecated, do not use
 	SASL                   SASLConfig    `json:"sasl"`
 	TLS                    TLSConfig     `json:"tls"`
+	// ConsumerConfig passes raw librdkafka consumer properties straight to the
+	// underlying client (e.g. "queued.max.messages.kbytes"). Security and
+	// connection keys, and any property already managed by the fields above,
+	// are ignored and cannot be overridden.
+	//
+	// Full list of properties:
+	// https://docs.confluent.io/platform/current/clients/librdkafka/html/md_CONFIGURATION.html
+	ConsumerConfig map[string]any `json:"consumerConfig"`
 }
 
 type ConsumeConfig struct {

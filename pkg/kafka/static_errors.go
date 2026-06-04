@@ -8,6 +8,7 @@ var (
 	errEmptyTopicResultSet                   = errors.New("empty topic result set")
 	errExpectedObject                        = errors.New("expected object")
 	errGroupTopicsMustNotBeEmpty             = errors.New("groupTopics must not be empty")
+	errInvalidRawConfigValue                 = errors.New("raw config value must be a string, bool, or integer")
 	errNoPositionsReturned                   = errors.New("no positions returned")
 	errObjectMustNotBeNil                    = errors.New("object must not be nil")
 	errPartitionOutOfRange                   = errors.New("partition is out of int32 range")

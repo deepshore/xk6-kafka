@@ -53,6 +53,14 @@ type WriterConfig struct {
 	WriteTimeout    time.Duration   `mapstructure:"writeTimeout"`
 	SASL            SASLConfig      `mapstructure:"sasl"`
 	TLS             TLSConfig       `mapstructure:"tls"`
+	// ProducerConfig passes raw librdkafka producer properties straight to the
+	// underlying client (e.g. "queue.buffering.max.kbytes"). Security and
+	// connection keys, and any property already managed by the fields above,
+	// are ignored and cannot be overridden.
+	//
+	// Full list of properties:
+	// https://docs.confluent.io/platform/current/clients/librdkafka/html/md_CONFIGURATION.html
+	ProducerConfig map[string]any `mapstructure:"producerConfig"`
 }
 
 func (c *WriterConfig) Parse(m map[string]any, runtime *sobek.Runtime) error {

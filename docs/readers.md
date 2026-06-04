@@ -57,13 +57,32 @@ type ReaderConfig struct {
 	RetentionTime          time.Duration `json:"retentionTime"`
 	ReadBackoffMin         time.Duration `json:"readBackoffMin"`
 	ReadBackoffMax         time.Duration `json:"readBackoffMax"`
-	OffsetOutOfRangeError  bool          `json:"offsetOutOfRangeError"` // deprecated, do not use
-	SASL                   SASLConfig    `json:"sasl"`
-	TLS                    TLSConfig     `json:"tls"`
+	OffsetOutOfRangeError  bool           `json:"offsetOutOfRangeError"` // deprecated, do not use
+	SASL                   SASLConfig     `json:"sasl"`
+	TLS                    TLSConfig      `json:"tls"`
+	ConsumerConfig         map[string]any `json:"consumerConfig"`
 }
 ```
 
 All the parameters are named following the camelCase notation style.
+
+### Tuning the underlying client with `consumerConfig`
+
+The reader is backed by [librdkafka](https://github.com/confluentinc/librdkafka) (via `confluent-kafka-go`). `consumerConfig` is an escape hatch that passes any [librdkafka consumer property](https://docs.confluent.io/platform/current/clients/librdkafka/html/md_CONFIGURATION.html) straight to the client (see that page for the full list of available settings) — useful for **bounding per-client memory**, since each reader is its own librdkafka instance and the fetch buffers (`queued.max.messages.kbytes`, default 64 MiB **per partition**) accumulate across many VUs.
+
+```javascript
+const consumer = new Reader({
+  brokers,
+  groupId,
+  topic,
+  consumerConfig: {
+    "queued.max.messages.kbytes": 4096, // cap the fetch buffer at 4 MiB per partition (default 64 MiB)
+    "fetch.message.max.bytes": 1048576,
+  },
+});
+```
+
+**Protected keys.** To avoid weakening the connection, `consumerConfig` cannot set or override security/connection keys (`bootstrap.servers`, `security.protocol`, `ssl.*`, `sasl.*`, `enable.ssl.certificate.verification` — configure these via `brokers`, `sasl`, and `tls`), nor any property already managed by the typed fields above. Such keys are ignored with a warning in the logs.
 
 ---
 

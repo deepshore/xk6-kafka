@@ -41,13 +41,40 @@ type WriterConfig struct {
 	Brokers         []string      `json:"brokers"`
 	BatchTimeout    time.Duration `json:"batchTimeout"`
 	ReadTimeout     time.Duration `json:"readTimeout"`
-	WriteTimeout    time.Duration `json:"writeTimeout"`
-	SASL            SASLConfig    `json:"sasl"`
-	TLS             TLSConfig     `json:"tls"`
+	WriteTimeout    time.Duration  `json:"writeTimeout"`
+	SASL            SASLConfig     `json:"sasl"`
+	TLS             TLSConfig      `json:"tls"`
+	ProducerConfig  map[string]any `json:"producerConfig"`
 }
 ```
 
 All the parameters are named following the camelCase notation style.
+
+### Tuning the underlying client with `producerConfig`
+
+The writer is backed by [librdkafka](https://github.com/confluentinc/librdkafka) (via `confluent-kafka-go`). The typed fields above only map a handful of properties; `producerConfig` is an escape hatch that passes any [librdkafka producer property](https://docs.confluent.io/platform/current/clients/librdkafka/html/md_CONFIGURATION.html) straight to the client. See that page for the full list of available settings.
+
+This is the main lever for **bounding per-client memory**. Each writer is its own librdkafka instance, and the default send-queue ceiling (`queue.buffering.max.kbytes`) is **1 GiB per client** — so many VUs can reserve a lot of headroom. Lower it to cap memory:
+
+```javascript
+const producer = new Writer({
+  brokers,
+  topic: topicName,
+  compression: CODEC_LZ4,
+  producerConfig: {
+    "queue.buffering.max.kbytes": 65536, // cap the send queue at 64 MiB (default 1 GiB)
+    "queue.buffering.max.messages": 100000,
+    "batch.size": 1000000, // keep batches large for throughput
+  },
+});
+```
+
+**Protected keys.** To avoid weakening the connection, `producerConfig` cannot set or override:
+
+- security/connection keys — `bootstrap.servers`, `security.protocol`, `ssl.*`, `sasl.*`, and `enable.ssl.certificate.verification` (configure these via `brokers`, `sasl`, and `tls` instead);
+- any property already managed by the typed fields above (e.g. `acks`, `compression.type`, `linger.ms`, `batch.num.messages`).
+
+Such keys are ignored with a warning in the logs rather than overriding the managed value.
 
 ### Manage multiple writers for various topics
 
