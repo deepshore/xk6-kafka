@@ -440,7 +440,7 @@ func TestRawConfigPassthroughEndToEnd(t *testing.T) {
 			RequiredAcks: 1,
 			ProducerConfig: map[string]any{
 				"queue.buffering.max.kbytes": float64(65536),
-				"acks":                       "0",          // managed → must be ignored
+				"acks":                       "0",         // managed → must be ignored
 				"security.protocol":          "PLAINTEXT", // security → must be ignored
 			},
 		})
