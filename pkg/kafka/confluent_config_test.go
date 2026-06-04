@@ -352,6 +352,115 @@ func TestConnectionConfigToConfluentConfigMap_Table(t *testing.T) {
 	})
 }
 
+func TestNormalizeConfluentConfigValue(t *testing.T) {
+	t.Parallel()
+	t.Run("integral float64 becomes int", func(t *testing.T) {
+		t.Parallel()
+		v, err := normalizeConfluentConfigValue(float64(16384))
+		require.NoError(t, err)
+		assert.Equal(t, 16384, v)
+	})
+	t.Run("int64 becomes int", func(t *testing.T) {
+		t.Parallel()
+		v, err := normalizeConfluentConfigValue(int64(100000))
+		require.NoError(t, err)
+		assert.Equal(t, 100000, v)
+	})
+	t.Run("string and bool pass through", func(t *testing.T) {
+		t.Parallel()
+		s, err := normalizeConfluentConfigValue("lz4")
+		require.NoError(t, err)
+		assert.Equal(t, "lz4", s)
+		b, err := normalizeConfluentConfigValue(true)
+		require.NoError(t, err)
+		assert.Equal(t, true, b)
+	})
+	t.Run("non-integer number is rejected", func(t *testing.T) {
+		t.Parallel()
+		_, err := normalizeConfluentConfigValue(float64(1.5))
+		require.ErrorIs(t, err, errInvalidRawConfigValue)
+	})
+	t.Run("unsupported type is rejected", func(t *testing.T) {
+		t.Parallel()
+		_, err := normalizeConfluentConfigValue([]string{"x"})
+		require.ErrorIs(t, err, errInvalidRawConfigValue)
+	})
+}
+
+func TestApplyRawConfigOverrides(t *testing.T) {
+	t.Parallel()
+	t.Run("applies new key with float normalization", func(t *testing.T) {
+		t.Parallel()
+		cfg := ckafka.ConfigMap{}
+		err := applyRawConfigOverrides(cfg, map[string]any{
+			"queue.buffering.max.kbytes": float64(65536),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 65536, cfg["queue.buffering.max.kbytes"])
+	})
+	t.Run("does not overwrite an already-managed key", func(t *testing.T) {
+		t.Parallel()
+		cfg := ckafka.ConfigMap{"acks": "1"}
+		err := applyRawConfigOverrides(cfg, map[string]any{"acks": "0"})
+		require.NoError(t, err)
+		assert.Equal(t, "1", cfg["acks"])
+	})
+	t.Run("rejects security and connection keys", func(t *testing.T) {
+		t.Parallel()
+		cfg := ckafka.ConfigMap{}
+		err := applyRawConfigOverrides(cfg, map[string]any{
+			"security.protocol":                   "PLAINTEXT",
+			"ssl.ca.location":                     "/tmp/evil.pem",
+			"sasl.password":                       "hunter2",
+			"enable.ssl.certificate.verification": false,
+			"bootstrap.servers":                   "evil:9092",
+		})
+		require.NoError(t, err)
+		assert.Empty(t, cfg)
+	})
+	t.Run("malformed value aborts", func(t *testing.T) {
+		t.Parallel()
+		cfg := ckafka.ConfigMap{}
+		err := applyRawConfigOverrides(cfg, map[string]any{"linger.ms": 1.5})
+		require.Error(t, err)
+	})
+	t.Run("nil map is a no-op", func(t *testing.T) {
+		t.Parallel()
+		cfg := ckafka.ConfigMap{}
+		require.NoError(t, applyRawConfigOverrides(cfg, nil))
+	})
+}
+
+func TestRawConfigPassthroughEndToEnd(t *testing.T) {
+	t.Parallel()
+	t.Run("producer config applies and protects managed keys", func(t *testing.T) {
+		t.Parallel()
+		cfg, err := writerConfigToConfluentConfigMap(&WriterConfig{
+			Brokers:      []string{"localhost:9092"},
+			RequiredAcks: 1,
+			ProducerConfig: map[string]any{
+				"queue.buffering.max.kbytes": float64(65536),
+				"acks":                       "0",          // managed → must be ignored
+				"security.protocol":          "PLAINTEXT", // security → must be ignored
+			},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 65536, cfg["queue.buffering.max.kbytes"])
+		assert.Equal(t, "1", cfg["acks"])
+	})
+	t.Run("consumer config applies", func(t *testing.T) {
+		t.Parallel()
+		cfg, err := readerConfigToConfluentConfigMap(&ReaderConfig{
+			Brokers: []string{"localhost:9092"},
+			ConsumerConfig: map[string]any{
+				"queued.max.messages.kbytes": float64(4096),
+			},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 4096, cfg["queued.max.messages.kbytes"])
+	})
+}
+
 func TestConfluentOffset(t *testing.T) {
 	t.Parallel()
 	t.Run("explicit offset wins", func(t *testing.T) {

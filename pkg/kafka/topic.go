@@ -12,6 +12,10 @@ type ConnectionConfig struct {
 	Brokers []string   `json:"brokers"`
 	SASL    SASLConfig `json:"sasl"`
 	TLS     TLSConfig  `json:"tls"`
+	// ClientConfig passes raw librdkafka properties straight to the underlying
+	// admin/producer client. Security and connection keys, and any property
+	// already managed by the fields above, are ignored and cannot be overridden.
+	ClientConfig map[string]any `json:"clientConfig"`
 }
 
 func (k *Kafka) adminClientClass(call sobek.ConstructorCall) *sobek.Object {
