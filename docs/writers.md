@@ -52,7 +52,7 @@ All the parameters are named following the camelCase notation style.
 
 ### Tuning the underlying client with `producerConfig`
 
-The writer is backed by [librdkafka](https://github.com/confluentinc/librdkafka) (via `confluent-kafka-go`). The typed fields above only map a handful of properties; `producerConfig` is an escape hatch that passes any [librdkafka producer property](https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md) straight to the client.
+The writer is backed by [librdkafka](https://github.com/confluentinc/librdkafka) (via `confluent-kafka-go`). The typed fields above only map a handful of properties; `producerConfig` is an escape hatch that passes any [librdkafka producer property](https://docs.confluent.io/platform/current/clients/librdkafka/html/md_CONFIGURATION.html) straight to the client. See that page for the full list of available settings.
 
 This is the main lever for **bounding per-client memory**. Each writer is its own librdkafka instance, and the default send-queue ceiling (`queue.buffering.max.kbytes`) is **1 GiB per client** — so many VUs can reserve a lot of headroom. Lower it to cap memory:
 

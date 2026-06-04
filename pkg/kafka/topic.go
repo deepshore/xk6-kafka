@@ -15,6 +15,9 @@ type ConnectionConfig struct {
 	// ClientConfig passes raw librdkafka properties straight to the underlying
 	// admin/producer client. Security and connection keys, and any property
 	// already managed by the fields above, are ignored and cannot be overridden.
+	//
+	// Full list of properties:
+	// https://docs.confluent.io/platform/current/clients/librdkafka/html/md_CONFIGURATION.html
 	ClientConfig map[string]any `json:"clientConfig"`
 }
 

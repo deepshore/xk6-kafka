@@ -68,7 +68,7 @@ All the parameters are named following the camelCase notation style.
 
 ### Tuning the underlying client with `consumerConfig`
 
-The reader is backed by [librdkafka](https://github.com/confluentinc/librdkafka) (via `confluent-kafka-go`). `consumerConfig` is an escape hatch that passes any [librdkafka consumer property](https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md) straight to the client — useful for **bounding per-client memory**, since each reader is its own librdkafka instance and the fetch buffers (`queued.max.messages.kbytes`, default 64 MiB **per partition**) accumulate across many VUs.
+The reader is backed by [librdkafka](https://github.com/confluentinc/librdkafka) (via `confluent-kafka-go`). `consumerConfig` is an escape hatch that passes any [librdkafka consumer property](https://docs.confluent.io/platform/current/clients/librdkafka/html/md_CONFIGURATION.html) straight to the client (see that page for the full list of available settings) — useful for **bounding per-client memory**, since each reader is its own librdkafka instance and the fetch buffers (`queued.max.messages.kbytes`, default 64 MiB **per partition**) accumulate across many VUs.
 
 ```javascript
 const consumer = new Reader({

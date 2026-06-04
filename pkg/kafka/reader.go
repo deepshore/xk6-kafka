@@ -71,6 +71,9 @@ type ReaderConfig struct {
 	// underlying client (e.g. "queued.max.messages.kbytes"). Security and
 	// connection keys, and any property already managed by the fields above,
 	// are ignored and cannot be overridden.
+	//
+	// Full list of properties:
+	// https://docs.confluent.io/platform/current/clients/librdkafka/html/md_CONFIGURATION.html
 	ConsumerConfig map[string]any `json:"consumerConfig"`
 }
 
