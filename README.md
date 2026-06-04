@@ -528,7 +528,7 @@ For v2.0.0+ examples using the new constructors (`Producer`, `Consumer`, `AdminC
 ### FAQ
 
 <details>
-<summary>Click to expand FAQ (17 questions)</summary>
+<summary>Click to expand FAQ (16 questions)</summary>
 
 1. Why do I receive `Error writing messages`?
 
@@ -699,30 +699,6 @@ For v2.0.0+ examples using the new constructors (`Producer`, `Consumer`, `AdminC
 16. What if I want to use a custom profile for the SASL authentication with AWS IAM instead of the default profile?
 
     You can use the `AWS_PROFILE` environment variable to specify the profile name or use the `awsProfile` option in the `SASLConfig` [object](api-docs/v2/docs/interfaces/SASLConfig.md).
-
-17. Why does memory usage explode when I start many VUs, and why doesn't `GOMEMLIMIT` help?
-
-    Each VU that constructs a `Writer`/`Reader` gets its own [librdkafka](https://github.com/confluentinc/librdkafka) client (via `confluent-kafka-go`), and VUs cannot share one. That client allocates its buffers and threads as **native (C) memory**, which is invisible to the Go garbage collector — so `GOMEMLIMIT`, which only bounds the Go heap, has no effect on it.
-
-    The dominant cost is the producer send queue, capped by `queue.buffering.max.kbytes` at **1 GiB per client** by default; consumers buffer up to `queued.max.messages.kbytes` (64 MiB) **per partition**. With many VUs these ceilings add up fast.
-
-    To keep memory bounded:
-
-    - **Use fewer clients.** Create the `Writer`/`Reader` once in the `init` context (not per iteration), run fewer VUs at higher throughput, and `produce()` in batches.
-    - **Cap the buffers** with the raw config passthrough — `producerConfig` on `WriterConfig` and `consumerConfig` on `ReaderConfig` (see the [writer](docs/writers.md) and [reader](docs/readers.md) docs):
-
-      ```javascript
-      const writer = new Writer({
-        brokers: ["localhost:9092"],
-        topic: "my-topic",
-        producerConfig: {
-          "queue.buffering.max.kbytes": 65536, // 64 MiB per client instead of 1 GiB
-        },
-      });
-      ```
-
-      Security and connection keys (`bootstrap.servers`, `security.protocol`, `ssl.*`, `sasl.*`, `enable.ssl.certificate.verification`) and any property already managed by the typed config fields cannot be overridden through these maps and are ignored with a warning.
-    - **Enforce a hard ceiling at the OS level** (e.g. a container `--memory` limit). Combined with bounded buffers, steady-state stays under the limit.
 
 </details>
 
